@@ -1,0 +1,310 @@
+---
+title: "HW 4"
+author: "Asim Waheed"
+date: "2024-02-15"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+gasprices <- read.csv("C:/Users/asimw/Downloads/gasprices.csv")
+sclass <- read.csv("C:/Users/asimw/Downloads/sclass.csv")
+nbc_pilotsurvey <- read.csv("C:/Users/asimw/Downloads/nbc_pilotsurvey.csv", header=TRUE)
+ebay <- read.csv("C:/Users/asimw/Downloads/ebay.csv")
+library(tidyverse)
+library(broom)
+library(boot)
+library(tidyr)
+library(dplyr)
+```
+
+***Problem 1 Theory A***
+
+***Claim***
+
+***The claim made in theory A is that gas stations tend to charge more if they do not have direct competition.***
+
+***Evidence***
+
+```{r, echo=FALSE}
+# Theory A: Gas stations charge more if they lack direct competition in sight.
+model_a <- lm(Price ~ Competitors, data = gasprices)
+tidy(model_a, conf.int = TRUE)
+```
+
+***The regression coefficient for competitors is -0.02348, but the p-value is 0.4869, which suggests that the effect of competitors in sight on the price is not statistically significant. The 95% confidence interval for this coefficient likely includes zero***
+
+***Conclusion***
+
+***The data does not show a statistically significant difference in price based off whether a gas station has competitors meaning there is no statistical support for this theory.***
+
+
+***Problem 1 Theory B***
+
+***Claim***
+
+***The claim made in theory B is that gas prices are typically higher in wealthier areas.***
+
+***Evidence***
+
+```{r, echo=FALSE}
+# Theory B: The richer the area, the higher the gas prices.
+model_b <- lm(Price ~ Income, data = gasprices)
+tidy(model_b, conf.int = TRUE)
+```
+
+***The coefficient for income is 1.24e-06 with a p-value of 0.00004165, indicating a significant positive association between median household income and gas prices. The positive coefficient suggests that as income increases, so does the price of gas.***
+
+***Conclusion***
+
+***The data supports the theory that gas prices are typically higher in richer areas.***
+
+
+***Problem 1 Theory C***
+
+***Claim***
+
+***The claim made in theory C is that gas stations at stoplights are more pricy***
+
+***Evidence***
+
+```{r, echo=FALSE}
+# Theory C: Gas stations at stoplights charge more.
+model_c <- lm(Price ~ Stoplight, data = gasprices)
+tidy(model_c, conf.int = TRUE)
+```
+
+***The regression coefficient for stoplights is -0.00324 with a high p-value of 0.8449. This indicates that there is no significant effect of having a stoplight in front of the gas station on the price of gas.***
+
+***Conclusion***
+
+***The theory that gas at stoplights charge more cannot be proven based off this data.***
+
+
+***Problem 1 Theory D***
+
+***Claim***
+
+***The claim made in Theory D is that gas stations with direct highway access are more expensive.***
+
+***Evidence***
+
+```{r, echo=FALSE}
+# Theory D: Gas stations with direct highway access charge more.
+model_d <- lm(Price ~ Highway, data = gasprices)
+tidy(model_d, conf.int = TRUE)
+```
+
+***The coefficient for highway access is 0.04596, with a p-value of 0.01927, suggesting that gas stations with highway access charge more than those without.**
+
+***Conclusion***
+
+***Based off the data the theory that gas stations with highway access charge more can be proven as true.***
+
+
+***Problem 1 Theory E***
+
+***Claim***
+
+***The claim made in Theory E is that Shell charges more than every non-Shell brand.***
+
+***Evidence***
+
+```{r, echo=FALSE}
+# Theory E: Shell charges more than all other non-Shell brands.
+gasprices$Is_Shell <- ifelse(gasprices$Brand == 'Shell', 1, 0)
+model_e <- lm(Price ~ Is_Shell, data = gasprices)
+tidy(model_e, conf.int = TRUE)
+```
+
+***The coefficient for Shell stations is 0.02704 with a p-value of 0.1269. This result is not statistically significant at the 5% level, suggesting that Shell stations do not consistently charge more than other brands based on the data provided.***
+
+***Conclusion***
+
+***The data does not show a statistially significant difference between shell prices versus other gas station prices so this theory cannot be proven to be true.***
+
+
+***Problem 2 Part A***
+
+```{r, echo=FALSE}
+# Part A: Bootstrap confidence interval for the average mileage of 2011 S-Class 63 AMGs
+sclass_2011_AMG <- sclass %>%
+  filter(year == 2011, trim == "63 AMG")
+
+# Function to calculate the mean
+mean_mileage <- function(data, indices) {
+  d <- data[indices,] # allows boot to select sample
+  mean(d$mileage)
+}
+
+# Perform bootstrap
+set.seed(123)
+results_a <- boot(data = sclass_2011_AMG, statistic = mean_mileage, R = 1000)
+
+# Calculate 95% confidence interval
+boot.ci(results_a, type = "perc")
+```
+
+***Problem 2 Part B***
+
+```{r, echo=FALSE}
+# Filter the dataset for 2014 S-Class 550s
+sclass_2014_550 <- sclass %>%
+  filter(year == 2014, trim == "550")
+
+# Define a binary variable for black color
+sclass_2014_550$isBlack <- ifelse(sclass_2014_550$color == "Black", 1, 0)
+
+# Define the function to calculate the proportion of black cars
+prop_black <- function(data, indices) {
+  
+  sampled_data <- data[indices, , drop = FALSE]  
+  
+  # Calculate and return the proportion of black cars
+  mean(sampled_data$isBlack)
+}
+
+# Perform the bootstrap using the isBlack column wrapped in a dataframe
+results_b <- boot(data = data.frame(isBlack = sclass_2014_550$isBlack), 
+                  statistic = prop_black, R = 1000)
+
+# Calculate the 95% confidence interval for the proportion
+ci_b <- boot.ci(results_b, type = "perc")
+
+prop_black_cars <- mean(sclass_2014_550$isBlack)
+ci_b
+
+prop_black_cars
+ci_b
+```
+
+***Problem 3 Part A***
+
+```{r, echo=FALSE}
+# Filter the data set to include only responses for "Living with Ed" and "My Name is Earl"
+subset_a <- nbc_pilotsurvey %>%
+  filter(Show %in% c("Living with Ed", "My Name is Earl"))
+
+results_a <- t.test(Q1_Happy ~ Show, data = subset_a, conf.level = 0.95)
+
+# Results and Conclusion will be based on the output of t.test
+print(results_a)
+```
+
+***Question: Is there a difference in the happiness that viewers feel when watching "Living with Ed" compared to "My Name is Earl"?***
+
+***Approach: I used a Welch Two Sample t-test (t.test function in R) to compare the mean responses to the Q1_Happy question between the two shows.***
+
+***Results: The 95% confidence interval for the difference in mean Q1_Happy scores is from approximately -0.10 to 0.40, with a p-value of 0.2447, suggesting no significant difference***
+
+***Conclusion: Based on the confidence interval, which includes zero, and the p-value greater than 0.05, there is no statistical evidence to conclude that one show consistently produces a higher mean Q1_Happy response among viewers.***
+
+***Problem 3 Part B***
+
+```{r, echo=FALSE}
+# Filter the data set for "The Biggest Loser" or "The Apprentice: Los Angeles"
+subset_b <- nbc_pilotsurvey %>%
+  filter(Show %in% c("The Biggest Loser", "The Apprentice: Los Angeles"))
+
+# Approach: Use t.test for independent samples to construct a 95% CI for the difference in means
+results_b <- t.test(Q1_Annoyed ~ Show, data = subset_b, conf.level = 0.95)
+
+results_b
+```
+
+***Question: Do viewers feel more annoyed watching "The Biggest Loser" or "The Apprentice: Los Angeles"?***
+
+***Approach: The difference in mean Q1_Annoyed scores between the two shows was analyzed using the Welch Two Sample t-test (t.test function in R).***
+
+***Results: The 95% confidence interval for the difference in mean Q1_Annoyed scores ranges from approximately 0.017 to 0.525, with a p-value of 0.03628.***
+
+***Conclusion: The positive confidence interval and p-value less than 0.05 suggest that "The Apprentice: Los Angeles" has a statistically significantly higher mean Q1_Annoyed score, indicating viewers find it more annoying on average than "The Biggest Loser".***
+
+***Problem 3 Part C***
+
+```{r, echo=FALSE}
+# Filter the data set for "Dancing with the Stars"
+subset_c <- nbc_pilotsurvey %>%
+  filter(Show == "Dancing with the Stars")
+
+# Construct a new binary variable for confusion (4 or 5 on the Q2_Confusing question)
+subset_c$Confused <- subset_c$Q2_Confusing >= 4
+
+# Approach: Use prop.test to construct a 95% CI for the proportion
+results_c <- prop.test(sum(subset_c$Confused), nrow(subset_c), conf.level = 0.95)
+
+results_c
+```
+
+***Question: What proportion of viewers find the show "Dancing with the Stars" confusing?***
+
+***Approach: A 1-sample proportions test with continuity correction (prop.test function in R) was used to estimate the proportion of viewers who rated the show as confusing (4 or 5 on the Q2_Confusing question).***
+
+***Results: The 95% confidence interval for the proportion of viewers who find the show confusing ranges from approximately 0.044 to 0.128, with a very low p-value.***
+
+***Conclusion: The confidence interval and the significant p-value indicate a small but statistically significant proportion of the viewers find "Dancing with the Stars" confusing. However, with a point estimate of around 7.7%, the majority of viewers do not find the show confusing.***
+
+```{r, echo=FALSE}
+# Filter the data set for "Dancing with the Stars"
+subset_dws <- nbc_pilotsurvey %>%
+  filter(Show == "Dancing with the Stars")
+
+# Create a binary variable indicating whether the respondent found the show confusing (4 or 5)
+subset_dws$Confusing <- subset_dws$Q2_Confusing >= 4
+
+# Use prop.test to calculate the confidence interval for the proportion
+prop_confusing <- mean(subset_dws$Confusing)
+conf_int <- prop.test(sum(subset_dws$Confusing), nrow(subset_dws), conf.level = 0.95)
+
+prop_confusing
+conf_int
+```
+
+***We would expect to see a proportion of about 0.08 for results 4 or greater and a confidence interval of approximately (0.04, 0.13).***
+
+
+***Problem 4***
+
+```{r, echo=FALSE}
+# Create the revenue ratio
+ebay_data <- ebay %>%
+  mutate(revenue_ratio = rev_after / rev_before)
+
+# Compute the mean revenue ratio for treatment and control groups
+mean_treatment <- mean(ebay_data$revenue_ratio[ebay_data$adwords_pause == 1])
+mean_control <- mean(ebay_data$revenue_ratio[ebay_data$adwords_pause == 0])
+
+# Define a function to compute the difference in means for the bootstrap
+boot_function <- function(data, indices) {
+  sample_data <- data[indices, ]
+  treatment_mean <- mean(sample_data$revenue_ratio[sample_data$adwords_pause == 1])
+  control_mean <- mean(sample_data$revenue_ratio[sample_data$adwords_pause == 0])
+  return(treatment_mean - control_mean)
+}
+
+# Bootstrap the difference in means
+set.seed(123)  # for reproducibility
+boot_results <- boot(data = ebay_data, statistic = boot_function, R = 10000)
+
+# Calculate the 95% confidence interval
+boot_conf_int <- boot.ci(boot_results, type = "perc")$percent[4:5]
+
+# Print the results
+print(paste("The mean revenue ratio for treatment DMAs is:", mean_treatment))
+print(paste("The mean revenue ratio for control DMAs is:", mean_control))
+print(paste("The 95% confidence interval for the difference in mean revenue ratio is:", boot_conf_int))
+```
+
+***Question: Was eBay's revenue ratio affected by pausing paid search advertising on Google AdWords in certain designated market areas (DMAs)?***
+
+***Approach: A difference in means test was used to compare the revenue ratios between treatment DMAs (where advertising was paused) and control DMAs (where advertising continued). The t.test function in R was used for this analysis, which is suitable for comparing means between two independent groups.***
+
+***Results: The mean revenue ratio for treatment DMAs was approximately 0.897, while for control DMAs, it was approximately 0.949. The 95% confidence interval for the difference in mean revenue ratios between the two groups was approximately -0.091 to -0.014, indicating a statistically significant decrease in the revenue ratio for the treatment group.***
+
+***Conclusion: The data suggests that eBay's paid search advertising on Google had a positive impact on revenue. DMAs where advertising was paused showed a lower revenue ratio compared to those where advertising continued. The negative confidence interval indicates that, with 95% confidence, the revenue ratio is lower in the treatment group, suggesting that paid advertisements contribute to higher revenue.***
+
+
+
+
